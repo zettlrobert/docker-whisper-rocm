@@ -88,3 +88,10 @@ If you need to free up disk space, run the cleanup script:
 - **Command not found**: Ensure you ran `source ~/.zshrc` after setup.
 - **HIP Error**: Verify your GPU architecture via `rocminfo`. The setup script usually handles this, but you can override `HSA_OVERRIDE_GFX_VERSION` in `docker-compose.yml`.
 - **VRAM**: The `large` model requires ~10GB of VRAM. If your card has less, use `--model medium`.
+
+### Test Debug
+
+```bash
+# In the project directory
+docker compose run --rm --entrypoint python3 whisper -c "import torch; print(f'ROCm version: {torch.version.hip}'); print(f'GPU available: {torch.cuda.is_available()}')"
+```
