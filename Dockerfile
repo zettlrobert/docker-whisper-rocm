@@ -16,9 +16,6 @@ RUN apt-get update && apt-get install -y \
 # Install OpenAI Whisper
 RUN pip install --no-cache-dir openai-whisper
 
-# Optional: Pre-download the 'large' model so the container is ready instantly
-RUN python3 -c "import whisper; whisper.load_model('large')"
-
 WORKDIR /app
 
 # Set whisper as the default command
