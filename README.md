@@ -1,101 +1,71 @@
 # Whisper ROCm (AMD GPU) Local AI Station
 
-This project provides a high-performance, containerized environment for **OpenAI Whisper** using **AMD ROCm**.
-By mounting your home directory and syncing your user permissions, it allows you to transcribe files anywhere on your system while outputting results with correct file ownership.
+A high-performance, containerized environment for **OpenAI Whisper** using **AMD ROCm**.
+This setup allows you to transcribe files anywhere in your home directory with full GPU acceleration, without leaving background processes running.
 
 ## 🚀 Key Features
 
-- **Full Home Access**: Seamlessly read from and write to any path in your `~/`.
-- **AMD Hardware Acceleration**: Optimized for ROCm 6.x (PyTorch `cuda` backend).
-- **Correct File Ownership**: Files created by the container belong to your user, not `root`.
-- **GPU Healthcheck**: Automatic verification that the ROCm stack is initialized.
+- **On-Demand Execution**: Container spins up, transcribes, and cleans up immediately.
+- **Auto-Detection**: `setup.sh` automatically detects your AMD GPU architecture.
+- **Local Model Cache**: Whisper models are stored in `./models` to save bandwidth and startup time.
+- **Permission Sync**: Files created belong to your user, not `root`.
 
 ---
 
-## 🛠 Prerequisites
+## 🛠 Quick Start
 
-### 1. Permissions
+### 1. Initial Permissions
 
-Ensure your user belongs to the `render` and `video` groups to access the GPU device nodes:
-
-```bash
-sudo usermod -a -G render $USER
-sudo usermod -a -G video $USER
-# Log out and back in (or reboot) for changes to take effect.
-
-```
-
-### 2. Environment Variables
-
-To ensure files created by Docker have the correct permissions, add these to your `~/.bashrc` or `~/.zshrc`:
+Ensure your user can access the GPU hardware:
 
 ```bash
-export UID=$(id -u)
-export GID=$(id -g)
-
+sudo usermod -a -G render,video $USER
+# Important: Log out and back in (or reboot) for this to take effect!
 ```
 
----
+### 2. Run Setup
 
-## 📦 Installation & Setup
-
-1. **Clone the repository** and navigate into it.
-2. **Configure GPU Arch**: If you are not using an RX 7000 series card, update the `HSA_OVERRIDE_GFX_VERSION` in `docker-compose.yml`:
-
-- **RX 7000**: `11.0.0`
-- **RX 6000**: `10.3.0`
-
-3. **Build & Start**:
+The setup script will detect your GPU, update your `.zshrc`, and build the image.
 
 ```bash
-docker compose build
-docker compose up -d
+chmod +x setup.sh
+./setup.sh
+source ~/.zshrc
 
 ```
-
-4. **Verify Health**:
-   Wait ~10 seconds and run `docker ps`. You should see `(healthy)` next to the `whisper-ai-rocm` container.
 
 ---
 
 ## 🎙 Usage
 
-Since your home directory is mounted, you can pass any absolute path within your home folder.
-Whisper will automatically save the transcription outputs (`.txt`, `.srt`, `.vtt`) in the **same directory** as the input file.
+Use the `whisper-gpu` alias from any terminal.Since your home directory is mapped, you can use standard paths.
+The output files (`.txt`, `.srt`, etc.) will appear in the **same folder** as the input file.
 
-### Basic Command
+**Basic Transcription:**
 
 ```bash
-docker exec -it whisper-ai-rocm whisper "/home/youruser/Videos/recording.mkv" --model large --device cuda
+whisper-gpu ~/Videos/meeting.mp4 --model large --device cuda
 
 ```
 
-### Recommended Alias
-
-Add this to your `~/.bashrc` to use Whisper like a native system command:
+**Translate to English:**
 
 ```bash
-alias whisper-gpu='docker exec -it whisper-ai-rocm whisper'
-
-```
-
-**After adding the alias, you can simply run:**
-
-```bash
-whisper-gpu ~/Videos/meeting.mp4 --model medium --device cuda --language German
-
+whisper-gpu ~/Videos/recording.mkv --model medium --task translate --device cuda
 ```
 
 ---
 
 ## 📂 Project Structure
 
-- `Dockerfile`: Builds the ROCm + PyTorch + FFmpeg + Whisper environment.
-- `docker-compose.yml`: Manages the background service, GPU passthrough, and home directory mounting.
-- `README.md`: This documentation.
+- `Dockerfile`: ROCm + PyTorch + FFmpeg build.
+- `docker-compose.yml`: Handles hardware passthrough and user mapping.
+- `setup.sh`: Automated environment configuration and alias creation.
+- `cleanup.sh`: Utility to reclaim disk space and delete model cache.
+- `models/`: (Generated) Stores downloaded Whisper models.
 
 ## ⚠️ Troubleshooting
 
-- **Permissions**: If the container fails to start, ensure `UID` and `GID` are exported in your current terminal session.
-- **GFX Version**: If you get a "HIP Error," verify your `HSA_OVERRIDE_GFX_VERSION` matches your hardware.
-- **VRAM**: The `large` model requires ~10GB of VRAM. Use `--model medium` if you experience crashes on 8GB cards.
+- **HIP Error**: Usually means `HSA_OVERRIDE_GFX_VERSION` is incorrect. Run `rocminfo` to verify your `gfx` version.
+- **Slow Startup**: The first run for any model takes time to download (e.g., `large` is 3GB). Subsequent runs are near-instant.
+- **UID/GID Warnings**: If you see these, ensure you have run `source ~/.zshrc` or that you are running from the project directory.
