@@ -3,15 +3,11 @@ services:
     build: .
     image: whisper-rocm
     container_name: whisper-ai-rocm
-    # Keeps the container alive so you can 'exec' into it instantly
-    command: sleep infinity
-    # This maps the container's internal user to YOUR local user
+    # No 'command' needed; it will use the Dockerfile ENTRYPOINT
     user: "${UID}:${GID}"
     volumes:
       - .:/app
-      # Mount home directory (Read-Write so it can save transcriptions)
       - ${HOME}:${HOME}
-    # Standard working directory inside the container
     working_dir: ${HOME}
     devices:
       - /dev/kfd:/dev/kfd
@@ -24,15 +20,5 @@ services:
     ipc: host
     shm_size: 8G
     environment:
-      - HSA_OVERRIDE_GFX_VERSION=11.0.0
+      - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION:-11.0.0}
       - HOME=${HOME}
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "python3 -c 'import torch; exit(0) if torch.cuda.is_available() else exit(1)'",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
