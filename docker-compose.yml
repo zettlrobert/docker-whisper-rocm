@@ -22,5 +22,5 @@ services:
     ipc: host
     shm_size: 8G
     environment:
-      - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION:-11.0.0}
+      - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION}
       - HOME=${HOME}
