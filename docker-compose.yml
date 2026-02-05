@@ -3,7 +3,6 @@ services:
     build: .
     image: whisper-rocm
     container_name: whisper-ai-rocm
-    # No 'command' needed; it will use the Dockerfile ENTRYPOINT
     user: "${UID}:${GID}"
     volumes:
       - .:/app
@@ -17,12 +16,12 @@ services:
     security_opt:
       - seccomp:unconfined
     group_add:
-      - "44"
-      - "110"
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-110}"
     ipc: host
     shm_size: 16G
     environment:
-      - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION}
+      - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION:-11.0.0}
       - TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
       - UID=${UID}
       - GID=${GID}
