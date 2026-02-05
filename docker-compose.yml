@@ -12,15 +12,18 @@ services:
       - ./models:${HOME}/.cache/whisper
     working_dir: ${PWD}
     devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
+      - /dev/kfd:/dev/kfd:rwm
+      - /dev/dri:/dev/dri:rwm
     security_opt:
       - seccomp:unconfined
     group_add:
-      - video
-      - render
+      - "44"
+      - "110"
     ipc: host
     shm_size: 16G
     environment:
       - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION}
+      - TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
+      - UID=${UID}
+      - GID=${GID}
       - HOME=${HOME}

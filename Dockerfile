@@ -10,16 +10,18 @@ RUN apt-get update && apt-get install -y \
   git \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 3. Install Whisper WITHOUT dependencies (this keeps your ROCm Torch safe)
+# Install Whisper WITHOUT dependencies (this keeps your ROCm Torch safe)
 RUN pip install --no-cache-dir openai-whisper --no-deps
 
-# 4. Install all the OTHER things Whisper needs
-RUN pip install --no-cache-dir tiktoken numba numpy tqdm more-itertools
-
-# 5. Optional: Ensure Torch is the absolute latest ROCm version
-# Note: The 'rocm/pytorch' base image usually has this, but this is your "insurance policy"
-RUN pip install --no-cache-dir --upgrade torch torchvision torchaudio \
-  --index-url https://download.pytorch.org/whl/rocm6.2
+# Install all the OTHER things Whisper needs with explicit numpy version
+RUN pip install --no-cache-dir \
+    numpy==2.3.5 \
+    tiktoken \
+    numba==0.63.1 \
+    llvmlite==0.46.0 \
+    tqdm \
+    more-itertools \
+    fsspec
 
 WORKDIR /app
 
