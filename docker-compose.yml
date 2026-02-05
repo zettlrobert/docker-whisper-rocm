@@ -10,7 +10,7 @@ services:
       - ${HOME}:${HOME}
       # Mounts a local 'models' folder to the container's whisper cache
       - ./models:${HOME}/.cache/whisper
-    working_dir: ${HOME}
+    working_dir: ${PWD}
     devices:
       - /dev/kfd:/dev/kfd
       - /dev/dri:/dev/dri
@@ -20,7 +20,7 @@ services:
       - video
       - render
     ipc: host
-    shm_size: 8G
+    shm_size: 16G
     environment:
       - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION}
       - HOME=${HOME}
