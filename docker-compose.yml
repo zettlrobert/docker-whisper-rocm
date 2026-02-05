@@ -9,7 +9,7 @@ services:
       - ${HOME}:${HOME}
       # Mounts a local 'models' folder to the container's whisper cache
       - ./models:${HOME}/.cache/whisper
-    working_dir: ${PWD}
+    working_dir: ${HOME}
     devices:
       - /dev/kfd:/dev/kfd:rwm
       - /dev/dri:/dev/dri:rwm

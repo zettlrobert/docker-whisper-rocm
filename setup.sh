@@ -6,8 +6,9 @@ ZSHRC="$HOME/.zshrc"
 
 echo "🚀 Starting Whisper ROCm Setup (Project: $PROJECT_DIR)"
 
-# 1. Ensure models directory exists
+# 1. Ensure models directory exists with correct ownership
 mkdir -p "$PROJECT_DIR/models"
+chown "${UID:-1000}:${GID:-1000}" "$PROJECT_DIR/models" 2>/dev/null || true
 
 # 2. Auto-detect GFX Version
 echo "🔍 Detecting AMD GPU Architecture..."
@@ -51,7 +52,7 @@ fi
 
 # 5. Use a Function for better Autocomplete and variable scoping
 if ! grep -q "function whisper-gpu()" "$ZSHRC"; then
-cat << EOF >> "$ZSHRC"
+cat << 'WHISPER_EOF' >> "$ZSHRC"
 
 # Whisper ROCm Function
 function whisper-gpu() {
@@ -66,15 +67,26 @@ function whisper-gpu() {
     export TORCH_CUDA_ARCH_LIST="10.0;11.0;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;12.0;12.1"
     export HOME=$HOME
     
-    # Call whisper with all arguments passed through
-    docker compose -f "$PROJECT_DIR/docker-compose.yml" run --rm whisper whisper "$@"
+    # Expand any ~ in file paths to absolute paths
+    EXPANDED_ARGS=()
+    for arg in "$@"; do
+      if [[ "$arg" == "~"* ]]; then
+        EXPANDED_ARGS+=("${arg/#~/$HOME}")
+      else
+        EXPANDED_ARGS+=("$arg")
+      fi
+    done
+    
+    # Call whisper with expanded arguments
+    docker compose -f "$PROJECT_DIR/docker-compose.yml" run --rm whisper whisper "${EXPANDED_ARGS[@]}"
   )
 }
-EOF
+WHISPER_EOF
 fi
 
 # 6. Build the image
 echo "🛠 Building the Docker image..."
+
 # Clear any old model artifacts that might be causing load errors
 rm -rf "$PROJECT_DIR/models/*"
 
