@@ -95,3 +95,66 @@ If you need to free up disk space, run the cleanup script:
 # In the project directory
 docker compose run --rm --entrypoint python3 whisper -c "import torch; print(f'ROCm version: {torch.version.hip}'); print(f'GPU available: {torch.cuda.is_available()}')"
 ```
+
+---
+
+## 🌍 System Portability Notes
+
+### Group ID Requirements
+
+The setup uses numeric group IDs for `/dev/kfd` and `/dev/dri` device access. These are auto-detected during `setup.sh`:
+
+- **video** group: Typically GID 44 on Debian/Ubuntu
+- **render** group: Typically GID 110 (can vary by system)
+
+The setup script stores these in `~/.zshrc` as `VIDEO_GID` and `RENDER_GID`.
+
+### On Another System
+
+If you clone this repo to another AMD system:
+
+1. Check if groups exist:
+   ```bash
+   getent group video
+   getent group render
+   ```
+
+2. If GIDs differ, re-run setup:
+   ```bash
+   ./setup.sh
+   source ~/.zshrc
+   ```
+
+3. Verify:
+   ```bash
+   echo $VIDEO_GID  # Should match: getent group video | cut -d: -f3
+   echo $RENDER_GID # Should match: getent group render | cut -d: -f3
+   ```
+
+### Manual GID Override (if needed)
+
+If you need to manually specify GIDs:
+
+```bash
+export VIDEO_GID=44
+export RENDER_GID=125  # Example different value
+./setup.sh
+```
+
+---
+
+## 🔍 Debugging GPU Issues
+
+See `DEBUG.md` for detailed analysis of common errors:
+- NumPy version incompatibility with Numba
+- Missing llvmlite dependency
+- ROCm device access via GID mismatch
+
+### Quick GPU Test
+
+```bash
+# Test inside container
+docker compose run --rm whisper python3 -c "import torch; print(f'GPU available: {torch.cuda.is_available()}')"
+```
+
+Expected output: `GPU available: True`
