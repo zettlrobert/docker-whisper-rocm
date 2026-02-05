@@ -26,7 +26,13 @@ else
 fi
 echo "✅ Detected GFX Version: $DETECTED_GFX"
 
-# 3. Update .zshrc
+# 3. Detect Host GIDs for Video and Render groups (for docker-compose.yml group_add)
+echo "🔍 Detecting Group IDs..."
+VIDEO_GID=$(getent group video | cut -d: -f3 || echo "44")
+RENDER_GID=$(getent group render | cut -d: -f3 || echo "110")
+echo "✅ Video GID: $VIDEO_GID, Render GID: $RENDER_GID"
+
+# 4. Update .zshrc
 echo "📝 Updating $ZSHRC..."
 
 # Add GPU override globally (safe for ROCm users)
@@ -34,7 +40,16 @@ if ! grep -q "HSA_OVERRIDE_GFX_VERSION" "$ZSHRC"; then
     echo "export HSA_OVERRIDE_GFX_VERSION=$DETECTED_GFX" >> "$ZSHRC"
 fi
 
-# 4. Use a Function for better Autocomplete and variable scoping
+# Add numeric GIDs as environment variables (for docker-compose.yml)
+if ! grep -q "VIDEO_GID" "$ZSHRC"; then
+    echo "export VIDEO_GID=$VIDEO_GID" >> "$ZSHRC"
+fi
+
+if ! grep -q "RENDER_GID" "$ZSHRC"; then
+    echo "export RENDER_GID=$RENDER_GID" >> "$ZSHRC"
+fi
+
+# 5. Use a Function for better Autocomplete and variable scoping
 if ! grep -q "function whisper-gpu()" "$ZSHRC"; then
 cat << EOF >> "$ZSHRC"
 
@@ -45,22 +60,26 @@ function whisper-gpu() {
     export UID=$(id -u)
     export GID=$(id -g)
     export PWD=$(pwd)
-    export HSA_OVERRIDE_GFX_VERSION="$DETECTED_GFX"" 
+    export HSA_OVERRIDE_GFX_VERSION="${HSA_OVERRIDE_GFX_VERSION:-11.0.0}"
+    export VIDEO_GID="${VIDEO_GID:-$VIDEO_GID}"
+    export RENDER_GID="${RENDER_GID:-$RENDER_GID}"
+    export TORCH_CUDA_ARCH_LIST="10.0;11.0;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;12.0;12.1"
+    export HOME=$HOME
     
-    # Explicitly call 'whisper' as the first arg to avoid "Permission Denied" (executing the movie)
-    docker compose -f "/home/zettlrobert/repositories/github.com/zettlrobert/docker-whisper-rocm/docker-compose.yml" run --rm whisper whisper "$@"
+    # Call whisper with all arguments passed through
+    docker compose -f "$PROJECT_DIR/docker-compose.yml" run --rm whisper whisper "$@"
   )
 }
 EOF
 fi
 
-# 5. Build the image
+# 6. Build the image
 echo "🛠 Building the Docker image..."
 # Clear any old model artifacts that might be causing load errors
 rm -rf "$PROJECT_DIR/models/*"
 
 # Execute build with current ID context
-UID=$(id -u) GID=$(id -g) docker compose -f "$PROJECT_DIR/docker-compose.yml" build
+UID=$(id -u) GID=$(id -g) VIDEO_GID=$VIDEO_GID RENDER_GID=$RENDER_GID docker compose -f "$PROJECT_DIR/docker-compose.yml" build
 
 echo "---"
 echo "✅ Setup Complete!"
