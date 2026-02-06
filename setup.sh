@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
 # --- Configuration ---
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export DOCKER_WHISPER_ROCM_DIR="$SCRIPT_DIR"
 ZSHRC="$HOME/.zshrc"
 
-echo "🚀 Starting Whisper ROCm Setup (Project: $PROJECT_DIR)"
+echo "🚀 Starting Whisper ROCm Setup (Project: $DOCKER_WHISPER_ROCM_DIR)"
 
 # 1. Ensure models directory exists with correct ownership
-mkdir -p "$PROJECT_DIR/models"
-chown "${UID:-1000}:${GID:-1000}" "$PROJECT_DIR/models" 2>/dev/null || true
+mkdir -p "$DOCKER_WHISPER_ROCM_DIR/models"
+chown "${MY_UID:-$(id -u)}:${GID:-$(id -g)}" "$DOCKER_WHISPER_ROCM_DIR/models" 2>/dev/null || true
 
 # 2. Auto-detect GFX Version
 echo "🔍 Detecting AMD GPU Architecture..."
@@ -29,52 +30,63 @@ echo "✅ Detected GFX Version: $DETECTED_GFX"
 
 # 3. Detect Host GIDs for Video and Render groups (for docker-compose.yml group_add)
 echo "🔍 Detecting Group IDs..."
-VIDEO_GID=$(getent group video | cut -d: -f3 || echo "44")
+GID=$(id -g)
 RENDER_GID=$(getent group render | cut -d: -f3 || echo "110")
-echo "✅ Video GID: $VIDEO_GID, Render GID: $RENDER_GID"
+echo "✅ GID: $GID, Render GID: $RENDER_GID"
 
 # 4. Install whisper-gpu to ~/.local/bin (standard Linux location)
 echo "📝 Installing whisper-gpu to ~/.local/bin..."
 mkdir -p "$HOME/.local/bin"
-cp "$PROJECT_DIR/whisper-gpu" "$HOME/.local/bin/whisper-gpu"
+cp "$DOCKER_WHISPER_ROCM_DIR/whisper-gpu" "$HOME/.local/bin/whisper-gpu"
 chmod +x "$HOME/.local/bin/whisper-gpu"
 
 # 5. Update .zshrc with new subshell-scoped function
 echo "📝 Updating $ZSHRC..."
 
-# # Add GPU override (safe for ROCm users) - but don't export, let function scope it
-# if ! grep -q "^export HSA_OVERRIDE_GFX_VERSION" "$ZSHRC"; then
-#     echo "# Whisper ROCm: HSA_OVERRIDE_GFX_VERSION is scoped to whisper-gpu function" >> "$ZSHRC"
-# fi
-#
-# # Add numeric GIDs as environment variables (for docker-compose.yml group_add)
-# if ! grep -q "^export VIDEO_GID=" "$ZSHRC"; then
-#     echo "# Whisper ROCm: VIDEO_GID and RENDER_GID are scoped to whisper-gpu function" >> "$ZSHRC"
-# fi
+# Remove old Whisper ROCm entries from .zshrc (if any exist)
+FUNC_LINE=$(grep -n "^function whisper-gpu()" "$ZSHRC" | cut -d: -f1)
 
-# 6. Add whisper-gpu function to .zshrc (subshell-scoped)
-cat << 'WHISPER_EOF' >> "$ZSHRC"
+if [ -n "$FUNC_LINE" ]; then
+    FUNC_END=$(awk -v start="$FUNC_LINE" 'NR>=start && /^}$/{print NR; exit}' "$ZSHRC")
+    
+    if [ -n "$FUNC_END" ]; then
+        sed -i "${FUNC_LINE},${FUNC_END}d" "$ZSHRC"
+        echo "✅ Removed old whisper-gpu function (lines $FUNC_LINE-$FUNC_END)"
+    fi
+fi
 
-# Whisper ROCm Function (wrapper script - uses ~/.local/bin/whisper-gpu)
+sed -i '/^export DOCKER_WHISPER_ROCM_DIR/d' "$ZSHRC"
+
+# Add export and function to .zshrc with the actual path string expanded
+cat << WHISPER_EOF >> "$ZSHRC"
+
+# Export DOCKER_WHISPER_ROCM_DIR for direct access (set during setup)
+export DOCKER_WHISPER_ROCM_DIR="$DOCKER_WHISPER_ROCM_DIR"
+
 function whisper-gpu() {
   (
     export HSA_OVERRIDE_GFX_VERSION="${HSA_OVERRIDE_GFX_VERSION:-11.0.0}"
     export VIDEO_GID="${VIDEO_GID:-44}"
     export RENDER_GID="${RENDER_GID:-110}"
     
+    # Set DOCKER_WHISPER_ROCM_DIR from environment if not already set
+    if [ -z "$DOCKER_WHISPER_ROCM_DIR" ]; then
+        echo "⚠️ Warning: DOCKER_WHISPER_ROCM_DIR not set, attempting auto-detection..."
+    fi
+    
     ~/.local/bin/whisper-gpu "$@"
   )
 }
 WHISPER_EOF
 
-# 7. Build the image
+# 6. Build the image
 echo "🛠 Building the Docker image..."
 
 # Clear any old model artifacts that might be causing load errors
-rm -rf "$PROJECT_DIR/models/*"
+rm -rf "$DOCKER_WHISPER_ROCM_DIR/models/*"
 
-# Execute build with current ID context
-UID=$(id -u) GID=$(id -g) VIDEO_GID=$VIDEO_GID RENDER_GID=$RENDER_GID docker compose -f "${PROJECT_DIR}/docker-compose.yml" build
+# Execute build
+docker compose build --no-cache
 
 echo "---"
 echo "✅ Setup Complete!"
