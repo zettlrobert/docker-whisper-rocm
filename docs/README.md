@@ -161,3 +161,30 @@ docker compose run --rm whisper python3 -c "import torch; print(f'GPU available:
 ```
 
 Expected output: `GPU available: True`
+
+---
+
+## 🔄 Rebuilding the Docker Image
+
+The `whisper-gpu` command automatically skips building if the image already exists. Use these commands to force a rebuild:
+
+### Quick Rebuild (with cache)
+```bash
+docker compose build
+```
+Uses Docker's layer caching for faster builds when only minor changes were made.
+
+### Full Rebuild (no cache)
+```bash
+docker compose build --no-cache
+```
+Force-rebuilds all layers from scratch. Use this when:
+- Base ROCm/PyTorch image has updates
+- You've modified the Dockerfile
+- Experiencing strange build issues
+
+### Force Rebuild via setup.sh
+```bash
+./cleanup.sh  # Remove image and clean up
+./setup.sh    # Reinstall and rebuild from scratch
+```
