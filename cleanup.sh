@@ -2,6 +2,13 @@
 
 echo "🧹 Starting Whisper ROCm Cleanup..."
 
+# Set DOCKER_WHISPER_ROCM_DIR from environment if available
+if [ -n "$DOCKER_WHISPER_ROCM_DIR" ] && [ -d "$DOCKER_WHISPER_ROCM_DIR" ]; then
+    cd "$DOCKER_WHISPER_ROCM_DIR"
+else
+    echo "⚠️ DOCKER_WHISPER_ROCM_DIR not set or invalid. Using current directory."
+fi
+
 # 1. Remove installed whisper-gpu script from ~/.local/bin
 echo "🗑 Removing installed whisper-gpu script..."
 rm -f "$HOME/.local/bin/whisper-gpu"
@@ -24,6 +31,7 @@ if [ -n "$FUNC_LINE" ]; then
 fi
 
 # Remove any remaining exports related to whisper
+sed -i '/^export DOCKER_WHISPER_ROCM_DIR/d' "$HOME/.zshrc"
 sed -i '/^export HSA_OVERRIDE_GFX_VERSION/d' "$HOME/.zshrc"
 sed -i '/^export VIDEO_GID=/d' "$HOME/.zshrc"
 sed -i '/^export RENDER_GID=/d' "$HOME/.zshrc"
