@@ -1,7 +1,30 @@
 #!/usr/bin/env bash
 
-# Auto-detect project directory (location of this script)
+# Auto-detect project directory (look for docker-compose.yml in parent directories)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+
+# If we're in ~/.local/bin, look for docker-compose.yml in parent directories
+if [[ "$SCRIPT_DIR" == *".local/bin"* ]]; then
+    # Start from the project root (we know it's at a fixed relative path from ~/.local/bin)
+    PROJECT_ROOT="$HOME/repositories/github.com/zettlrobert/docker-whisper-rocm"
+    
+    if [ -f "$PROJECT_ROOT/docker-compose.yml" ]; then
+        SCRIPT_DIR="$PROJECT_ROOT"
+    else
+        # Fallback: search up to 10 levels
+        for i in {1..10}; do
+            PARENT=$(dirname "$SCRIPT_DIR")
+            if [ "$PARENT" == "$SCRIPT_DIR" ]; then
+                break
+            fi
+            if [ -f "$PARENT/docker-compose.yml" ] && [ -d "$PARENT/.git" ]; then
+                SCRIPT_DIR="$PARENT"
+                break
+            fi
+            SCRIPT_DIR="$PARENT"
+        done
+    fi
+fi
 
 # Expand any ~ in file paths to absolute paths  
 EXPANDED_ARGS=()
