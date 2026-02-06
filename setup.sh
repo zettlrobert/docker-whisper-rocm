@@ -85,8 +85,8 @@ echo "🛠 Building the Docker image..."
 # Clear any old model artifacts that might be causing load errors
 rm -rf "$DOCKER_WHISPER_ROCM_DIR/models/*"
 
-# Execute build
-docker compose build --no-cache
+# Execute build (using cache for faster subsequent builds)
+docker compose build
 
 echo "---"
 echo "✅ Setup Complete!"
