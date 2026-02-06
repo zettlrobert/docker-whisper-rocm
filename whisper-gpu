@@ -52,10 +52,14 @@ for arg in "$@"; do
   fi
 done
 
-# Build image (in case of changes)
-echo "🛠 Building Docker image..."
-cd "$SCRIPT_DIR"
-docker compose build --progress plain
+# Only rebuild if image doesn't exist (saves time on repeated runs)
+if docker image inspect whisper-rocm:latest &>/dev/null; then
+    echo "✅ Image exists, skipping build"
+else
+    echo "🛠 Building Docker image..."
+    cd "$SCRIPT_DIR"
+    docker compose build --progress plain
+fi
 
 # Run whisper with expanded arguments  
 echo "🎙 Running whisper transcription..."
