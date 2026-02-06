@@ -37,52 +37,30 @@ echo "✅ Video GID: $VIDEO_GID, Render GID: $RENDER_GID"
 echo "📝 Updating $ZSHRC..."
 
 # Add GPU override globally (safe for ROCm users)
-if ! grep -q "HSA_OVERRIDE_GFX_VERSION" "$ZSHRC"; then
+if ! grep -q "^export HSA_OVERRIDE_GFX_VERSION" "$ZSHRC"; then
     echo "export HSA_OVERRIDE_GFX_VERSION=$DETECTED_GFX" >> "$ZSHRC"
 fi
 
-# Add numeric GIDs as environment variables (for docker-compose.yml)
-if ! grep -q "VIDEO_GID" "$ZSHRC"; then
+# Add numeric GIDs as environment variables (for docker-compose.yml group_add)
+if ! grep -q "^export VIDEO_GID=" "$ZSHRC"; then
     echo "export VIDEO_GID=$VIDEO_GID" >> "$ZSHRC"
 fi
 
-if ! grep -q "RENDER_GID" "$ZSHRC"; then
+if ! grep -q "^export RENDER_GID=" "$ZSHRC"; then
     echo "export RENDER_GID=$RENDER_GID" >> "$ZSHRC"
 fi
 
-# 5. Use a Function for better Autocomplete and variable scoping
-if ! grep -q "function whisper-gpu()" "$ZSHRC"; then
+# Export PROJECT_DIR for the wrapper script to use (before function definition)
+echo "export PROJECT_DIR=$PROJECT_DIR" >> "$ZSHRC"
+
+# 5. Add whisper-gpu wrapper script reference to .zshrc
 cat << 'WHISPER_EOF' >> "$ZSHRC"
 
-# Whisper ROCm Function
+# Whisper ROCm Function (wrapper script)
 function whisper-gpu() {
-  (
-    # Exporting ensures docker-compose.yml sees these
-    export UID=$(id -u)
-    export GID=$(id -g)
-    export PWD=$(pwd)
-    export HSA_OVERRIDE_GFX_VERSION="${HSA_OVERRIDE_GFX_VERSION:-11.0.0}"
-    export VIDEO_GID="${VIDEO_GID:-$VIDEO_GID}"
-    export RENDER_GID="${RENDER_GID:-$RENDER_GID}"
-    export TORCH_CUDA_ARCH_LIST="10.0;11.0;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;12.0;12.1"
-    export HOME=$HOME
-    
-    # Expand any ~ in file paths to absolute paths
-    EXPANDED_ARGS=()
-    for arg in "$@"; do
-      if [[ "$arg" == "~"* ]]; then
-        EXPANDED_ARGS+=("${arg/#~/$HOME}")
-      else
-        EXPANDED_ARGS+=("$arg")
-      fi
-    done
-    
-    # Call whisper with expanded arguments
-    docker compose -f "$PROJECT_DIR/docker-compose.yml" run --rm whisper whisper "${EXPANDED_ARGS[@]}"
-  )
+  "$PROJECT_DIR/whisper-gpu" "$@"
 }
 WHISPER_EOF
-fi
 
 # 6. Build the image
 echo "🛠 Building the Docker image..."
@@ -91,7 +69,7 @@ echo "🛠 Building the Docker image..."
 rm -rf "$PROJECT_DIR/models/*"
 
 # Execute build with current ID context
-UID=$(id -u) GID=$(id -g) VIDEO_GID=$VIDEO_GID RENDER_GID=$RENDER_GID docker compose -f "$PROJECT_DIR/docker-compose.yml" build
+UID=$(id -u) GID=$(id -g) VIDEO_GID=$VIDEO_GID RENDER_GID=$RENDER_GID docker compose -f "${PROJECT_DIR}/docker-compose.yml" build
 
 echo "---"
 echo "✅ Setup Complete!"

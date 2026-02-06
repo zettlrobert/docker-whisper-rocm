@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+# Auto-detect project directory (location of this script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+
+# Expand any ~ in file paths to absolute paths  
+EXPANDED_ARGS=()
+for arg in "$@"; do
+  if [[ "$arg" == "~"* ]]; then
+    EXPANDED_ARGS+=("${arg/#~/$HOME}")
+  else
+    EXPANDED_ARGS+=("$arg")
+  fi
+done
+
+# Build image (in case of changes)
+echo "🛠 Building Docker image..."
+cd "$SCRIPT_DIR"
+docker compose build --progress plain
+
+# Run whisper with expanded arguments  
+echo "🎙 Running whisper transcription..."
+docker compose -f "${SCRIPT_DIR}/docker-compose.yml" run --rm --user "$(id -u):$(id -g)" whisper whisper "${EXPANDED_ARGS[@]}"

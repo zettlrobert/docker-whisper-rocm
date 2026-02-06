@@ -3,12 +3,13 @@ services:
     build: .
     image: whisper-rocm
     container_name: whisper-ai-rocm
-    user: "${UID}:${GID}"
     volumes:
       - .:/app
       - ${HOME}:${HOME}
       # Mounts a local 'models' folder to the container's whisper cache
       - ./models:${HOME}/.cache/whisper
+      # Fix MiOpen permission error by mounting config directory with proper permissions
+      - ./config/miopen:${HOME}/.config/miopen:rw
     working_dir: ${HOME}
     devices:
       - /dev/kfd:/dev/kfd:rwm
@@ -23,6 +24,3 @@ services:
     environment:
       - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION:-11.0.0}
       - TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
-      - UID=${UID}
-      - GID=${GID}
-      - HOME=${HOME}
