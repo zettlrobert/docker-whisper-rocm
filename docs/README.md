@@ -114,12 +114,14 @@ The setup script stores these in `~/.zshrc` as `VIDEO_GID` and `RENDER_GID`.
 If you clone this repo to another AMD system:
 
 1. Check if groups exist:
+
    ```bash
    getent group video
    getent group render
    ```
 
 2. If GIDs differ, re-run setup:
+
    ```bash
    ./setup.sh
    source ~/.zshrc
@@ -146,6 +148,7 @@ export RENDER_GID=125  # Example different value
 ## 🔍 Debugging GPU Issues
 
 See `DEBUG.md` for detailed analysis of common errors:
+
 - NumPy version incompatibility with Numba
 - Missing llvmlite dependency
 - ROCm device access via GID mismatch
