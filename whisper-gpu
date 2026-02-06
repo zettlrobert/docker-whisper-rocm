@@ -1,30 +1,46 @@
 #!/usr/bin/env bash
 
-# Auto-detect project directory (look for docker-compose.yml in parent directories)
+# Auto-detect DOCKER_WHISPER_ROCM_DIR (scoped path detection from ~/.local/bin)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 
-# If we're in ~/.local/bin, look for docker-compose.yml in parent directories
 if [[ "$SCRIPT_DIR" == *".local/bin"* ]]; then
-    # Start from the project root (we know it's at a fixed relative path from ~/.local/bin)
-    PROJECT_ROOT="$HOME/repositories/github.com/zettlrobert/docker-whisper-rocm"
+    DOCKER_WHISPER_ROCM_DIR=""
     
-    if [ -f "$PROJECT_ROOT/docker-compose.yml" ]; then
-        SCRIPT_DIR="$PROJECT_ROOT"
-    else
-        # Fallback: search up to 10 levels
-        for i in {1..10}; do
-            PARENT=$(dirname "$SCRIPT_DIR")
-            if [ "$PARENT" == "$SCRIPT_DIR" ]; then
-                break
-            fi
-            if [ -f "$PARENT/docker-compose.yml" ] && [ -d "$PARENT/.git" ]; then
-                SCRIPT_DIR="$PARENT"
-                break
-            fi
-            SCRIPT_DIR="$PARENT"
-        done
+    # Search upward from ~/.local/bin (max 10 levels)
+    SEARCH_DIR="$SCRIPT_DIR"
+    for i in {1..10}; do
+        PARENT=$(dirname "$SEARCH_DIR")
+        if [ "$PARENT" == "$SEARCH_DIR" ]; then
+            break
+        fi
+        if [ -f "$PARENT/docker-compose.yml" ] && [ -d "$PARENT/.git" ]; then
+            DOCKER_WHISPER_ROCM_DIR="$PARENT"
+            break
+        fi
+        SEARCH_DIR="$PARENT"
+    done
+    
+    # Fallback: search $HOME for docker-whisper-rocm directory (maxdepth 5)
+    if [ -z "$DOCKER_WHISPER_ROCM_DIR" ]; then
+        SEARCH_RESULT=$(find "$HOME" -maxdepth 5 -name "docker-whisper-rocm" -type d 2>/dev/null | head -1)
+        if [ -n "$SEARCH_RESULT" ] && [ -f "$SEARCH_RESULT/docker-compose.yml" ]; then
+            DOCKER_WHISPER_ROCM_DIR="$SEARCH_RESULT"
+        fi
     fi
+    
+    # Final validation
+    if [ -z "$DOCKER_WHISPER_ROCM_DIR" ]; then
+        echo "❌ Error: Could not detect docker-whisper-rocm directory"
+        echo "Please ensure the repository exists in your home directory."
+        exit 1
+    fi
+    
+    SCRIPT_DIR="$DOCKER_WHISPER_ROCM_DIR"
+else
+    DOCKER_WHISPER_ROCM_DIR="$SCRIPT_DIR"
 fi
+
+export DOCKER_WHISPER_ROCM_DIR
 
 # Expand any ~ in file paths to absolute paths  
 EXPANDED_ARGS=()
