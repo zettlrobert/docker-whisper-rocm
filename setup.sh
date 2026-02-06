@@ -33,36 +33,41 @@ VIDEO_GID=$(getent group video | cut -d: -f3 || echo "44")
 RENDER_GID=$(getent group render | cut -d: -f3 || echo "110")
 echo "✅ Video GID: $VIDEO_GID, Render GID: $RENDER_GID"
 
-# 4. Update .zshrc
+# 4. Install whisper-gpu to ~/.local/bin (standard Linux location)
+echo "📝 Installing whisper-gpu to ~/.local/bin..."
+mkdir -p "$HOME/.local/bin"
+cp "$PROJECT_DIR/whisper-gpu" "$HOME/.local/bin/whisper-gpu"
+chmod +x "$HOME/.local/bin/whisper-gpu"
+
+# 5. Update .zshrc with new subshell-scoped function
 echo "📝 Updating $ZSHRC..."
 
-# Add GPU override globally (safe for ROCm users)
-if ! grep -q "^export HSA_OVERRIDE_GFX_VERSION" "$ZSHRC"; then
-    echo "export HSA_OVERRIDE_GFX_VERSION=$DETECTED_GFX" >> "$ZSHRC"
-fi
+# # Add GPU override (safe for ROCm users) - but don't export, let function scope it
+# if ! grep -q "^export HSA_OVERRIDE_GFX_VERSION" "$ZSHRC"; then
+#     echo "# Whisper ROCm: HSA_OVERRIDE_GFX_VERSION is scoped to whisper-gpu function" >> "$ZSHRC"
+# fi
+#
+# # Add numeric GIDs as environment variables (for docker-compose.yml group_add)
+# if ! grep -q "^export VIDEO_GID=" "$ZSHRC"; then
+#     echo "# Whisper ROCm: VIDEO_GID and RENDER_GID are scoped to whisper-gpu function" >> "$ZSHRC"
+# fi
 
-# Add numeric GIDs as environment variables (for docker-compose.yml group_add)
-if ! grep -q "^export VIDEO_GID=" "$ZSHRC"; then
-    echo "export VIDEO_GID=$VIDEO_GID" >> "$ZSHRC"
-fi
-
-if ! grep -q "^export RENDER_GID=" "$ZSHRC"; then
-    echo "export RENDER_GID=$RENDER_GID" >> "$ZSHRC"
-fi
-
-# Export PROJECT_DIR for the wrapper script to use (before function definition)
-echo "export PROJECT_DIR=$PROJECT_DIR" >> "$ZSHRC"
-
-# 5. Add whisper-gpu wrapper script reference to .zshrc
+# 6. Add whisper-gpu function to .zshrc (subshell-scoped)
 cat << 'WHISPER_EOF' >> "$ZSHRC"
 
-# Whisper ROCm Function (wrapper script)
+# Whisper ROCm Function (wrapper script - uses ~/.local/bin/whisper-gpu)
 function whisper-gpu() {
-  "$PROJECT_DIR/whisper-gpu" "$@"
+  (
+    export HSA_OVERRIDE_GFX_VERSION="${HSA_OVERRIDE_GFX_VERSION:-11.0.0}"
+    export VIDEO_GID="${VIDEO_GID:-44}"
+    export RENDER_GID="${RENDER_GID:-110}"
+    
+    ~/.local/bin/whisper-gpu "$@"
+  )
 }
 WHISPER_EOF
 
-# 6. Build the image
+# 7. Build the image
 echo "🛠 Building the Docker image..."
 
 # Clear any old model artifacts that might be causing load errors
