@@ -86,7 +86,7 @@ If you need to free up disk space, run the cleanup script:
 ## ⚠️ Troubleshooting
 
 - **Command not found**: Ensure you ran `source ~/.zshrc` after setup.
-- **HIP Error**: Verify your GPU architecture via `rocminfo`. The setup script usually handles this, but you can override `HSA_OVERRIDE_GFX_VERSION` in `docker-compose.yml`.
+- **HIP Error**: Verify your GPU architecture via `rocminfo`. The setup script usually handles this, but you can override by setting the `HSA_OVERRIDE_GFX_VERSION` environment variable before running `whisper-gpu`.
 - **VRAM**: The `large` model requires ~10GB of VRAM. If your card has less, use `--model medium`.
 
 ### Test Debug
@@ -147,7 +147,7 @@ export RENDER_GID=125  # Example different value
 
 ## 🔍 Debugging GPU Issues
 
-See `DEBUG.md` for detailed analysis of common errors:
+See `docs/DEBUG.md` for detailed analysis of common errors:
 
 - NumPy version incompatibility with Numba
 - Missing llvmlite dependency
