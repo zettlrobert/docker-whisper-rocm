@@ -7,9 +7,11 @@ ZSHRC="$HOME/.zshrc"
 
 echo "🚀 Starting Whisper ROCm Setup (Project: $DOCKER_WHISPER_ROCM_DIR)"
 
-# 1. Ensure models directory exists with correct ownership
+# 1. Ensure models and config directories exist with correct ownership
 mkdir -p "$DOCKER_WHISPER_ROCM_DIR/models"
+mkdir -p "$DOCKER_WHISPER_ROCM_DIR/config/miopen"
 chown "${MY_UID:-$(id -u)}:${GID:-$(id -g)}" "$DOCKER_WHISPER_ROCM_DIR/models" 2>/dev/null || true
+chown "${MY_UID:-$(id -u)}:${GID:-$(id -g)}" "$DOCKER_WHISPER_ROCM_DIR/config/miopen" 2>/dev/null || true
 
 # 2. Auto-detect GFX Version
 echo "🔍 Detecting AMD GPU Architecture..."
@@ -31,8 +33,9 @@ echo "✅ Detected GFX Version: $DETECTED_GFX"
 # 3. Detect Host GIDs for Video and Render groups (for docker-compose.yml group_add)
 echo "🔍 Detecting Group IDs..."
 GID=$(id -g)
+VIDEO_GID=$(getent group video | cut -d: -f3 || echo "44")
 RENDER_GID=$(getent group render | cut -d: -f3 || echo "110")
-echo "✅ GID: $GID, Render GID: $RENDER_GID"
+echo "✅ GID: $GID, Video GID: $VIDEO_GID, Render GID: $RENDER_GID"
 
 # 4. Install whisper-gpu to ~/.local/bin (standard Linux location)
 echo "📝 Installing whisper-gpu to ~/.local/bin..."
@@ -57,7 +60,7 @@ fi
 
 sed -i '/^export DOCKER_WHISPER_ROCM_DIR/d' "$ZSHRC"
 
-# Add export and function to .zshrc with the actual path string expanded
+# Add export and function to .zshrc with detected values baked in
 cat << WHISPER_EOF >> "$ZSHRC"
 
 # Export DOCKER_WHISPER_ROCM_DIR for direct access (set during setup)
@@ -65,16 +68,10 @@ export DOCKER_WHISPER_ROCM_DIR="$DOCKER_WHISPER_ROCM_DIR"
 
 function whisper-gpu() {
   (
-    export HSA_OVERRIDE_GFX_VERSION="${HSA_OVERRIDE_GFX_VERSION:-11.0.0}"
-    export VIDEO_GID="${VIDEO_GID:-44}"
-    export RENDER_GID="${RENDER_GID:-110}"
-    
-    # Set DOCKER_WHISPER_ROCM_DIR from environment if not already set
-    if [ -z "$DOCKER_WHISPER_ROCM_DIR" ]; then
-        echo "⚠️ Warning: DOCKER_WHISPER_ROCM_DIR not set, attempting auto-detection..."
-    fi
-    
-    ~/.local/bin/whisper-gpu "$@"
+    export HSA_OVERRIDE_GFX_VERSION="$DETECTED_GFX"
+    export VIDEO_GID="$VIDEO_GID"
+    export RENDER_GID="$RENDER_GID"
+    ~/.local/bin/whisper-gpu "\$@"
   )
 }
 WHISPER_EOF
@@ -83,7 +80,7 @@ WHISPER_EOF
 echo "🛠 Building the Docker image..."
 
 # Clear any old model artifacts that might be causing load errors
-rm -rf "$DOCKER_WHISPER_ROCM_DIR/models/*"
+rm -rf "${DOCKER_WHISPER_ROCM_DIR}/models/"*
 
 # Execute build (using cache for faster subsequent builds)
 docker compose build

@@ -22,5 +22,8 @@ services:
     ipc: host
     shm_size: 16G
     environment:
+      - HOME=${HOME}
       - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION:-11.0.0}
       - TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
+      - MIOPEN_USER_DB_PATH=${HOME}/.config/miopen/miopen-user.db
+      - MIOPEN_CUSTOM_CACHE_DIR=${HOME}/.config/miopen
