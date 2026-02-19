@@ -42,11 +42,17 @@ fi
 
 export DOCKER_WHISPER_ROCM_DIR
 
-# Expand any ~ in file paths to absolute paths  
+# Resolve file paths to absolute paths (~ expansion and relative path resolution)
+# The container's working_dir differs from the host CWD, so relative paths won't work
+CALLER_DIR="$(pwd)"
 EXPANDED_ARGS=()
 for arg in "$@"; do
   if [[ "$arg" == "~"* ]]; then
     EXPANDED_ARGS+=("${arg/#~/$HOME}")
+  elif [[ "$arg" == "./"* || "$arg" == "../"* ]]; then
+    EXPANDED_ARGS+=("${CALLER_DIR}/${arg}")
+  elif [[ -f "${CALLER_DIR}/${arg}" && "$arg" != "-"* ]]; then
+    EXPANDED_ARGS+=("${CALLER_DIR}/${arg}")
   else
     EXPANDED_ARGS+=("$arg")
   fi
